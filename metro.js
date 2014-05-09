@@ -1,6 +1,24 @@
-/* global ymaps */
+ymaps.ready(function () { ymaps.modules.define('createTransportMap', [
+    'util.extend',
+    'util.augment',
+    'vow',
+    'projection.Cartesian',
+    'event.Manager',
+    'collection.Item',
+    'Collection',
+    'layer.storage',
+    'mapType.storage',
+    'MapType',
+    'Map',
+    'Rectangle'
+], function (provide,
+        extend, augment, vow,
+        CartesianProjection,
+        eventManager,
+        Item, Collection,
+        layerStorage, mapTypeStorage, MapType, Map, Rectangle) {
 
-ymaps.ready(function () {
+    var prefix = 'open_transport_0_1_0';
     /**
      * TransportMap.
      * Instance of this class is exposed to the user
@@ -26,19 +44,24 @@ ymaps.ready(function () {
      * @param {Number} [options.minZoom = 0]
      * @param {Number} [options.lang = 'ru']
      * @param {String} [options.path = 'node_modules/metro-data/'] A path to the metro-data
+     * @example
+     * ymaps.modules.load(['createTransportMap']).then(function (createTransportMap) {
+     *     createTransportMap('moscow', 'map_container_id').then(function (map) {
+     *         // Do something valuable
+     *     });
+     * });
      */
     function TransportMap(city, container, state, options) {
         this._schemeId = this._schemeIdByCity[city];
 
-        this._options = ymaps.util.extend({
-            lang: 'ru',
+        this._options = extend({
             path: 'node_modules/metro-data/',
             minZoom: 0,
             maxZoom: 3
         }, options);
-        this._state = ymaps.util.extend({
-            center: [0, 0],
+        this._state = extend({
             shaded: false,
+            center: [0, 0],
             selection: []
         }, state);
 
@@ -59,103 +82,64 @@ ymaps.ready(function () {
                 setTimeout(function () {throw e; });
             });
     }
-    TransportMap.prototype = {
+    extend(TransportMap.prototype, {
+        _loadScheme: function () {
+            return Scheme.load([
+                this._options.path,
+                this._schemeId, '.', this._options.lang, '.svg'
+            ].join(''));
+        },
         /**
          * Loads an svg scheme
          * and returns promise that provides an SVGElement
          *
          * @returns {ymaps.vow.Promise}
          */
-        _loadScheme: function () {
-            var domParser, node,
-            xhr = new XMLHttpRequest(),
-            deferred = new ymaps.vow.Deferred();
+        _onSchemeLoad: function (scheme) {
+            this._scheme = scheme;
+            this._schemeView = new SchemeView(scheme);
 
-            xhr.onreadystatechange = function () {
-                if (xhr.readyState === 4) {
-                    domParser = new window.DOMParser();
-                    try {
-                        node = domParser.parseFromString(xhr.responseText, "text/xml");
-                        deferred.resolve(node.firstChild);
-                    } catch (e) {
-                        deferred.reject(e);
-                    }
-                }
-            };
-            xhr.onerror = function (e) {
-                deferred.reject(e);
-            };
-            xhr.open('GET', [
-                this._options.path,
-                this._schemeId, '.', this._options.lang, '.svg'
-            ].join(''), true);
-            xhr.send(null);
+            this._map = this._createMap();
+            this._map.layers.add(new SchemeLayer(this._schemeView));
 
-            return deferred.promise();
-        },
-        _onSchemeLoad: function (node) {
-            return this._createMap().then(function (map) {
-                this._map = map;
-                this._schemeView = new SchemeView(node);
-                this._map.layers.add(new SchemeLayer(this._schemeView));
+            this.stations = new StationCollection(this._schemeView);
+            this._map.geoObjects.add(this.stations);
+            this.stations.select(this._state.selection);
 
-                this.stations = new StationCollection(this._schemeView);
-                this._map.layers.add(this.stations);
-                this.stations.select(this._state.selection);
+            // Event manager added
+            this.events = new eventManager();
+            // Enable event bubbling
+            this._map.events.setParent(this.events);
 
-                // Event manager added
-                this.events = new ymaps.event.Manager();
-                // Enable event bubbling
-                this._map.events.setParent(this.events);
-                this.stations.events.setParent(this.events);
-
-                if (this._state.shaded) {
-                    this.shade();
-                }
+            if (this._state.shaded) {
+                this.shade();
+            }
 
                 return this;
             }.bind(this));
         },
         _createMap: function () {
-            var SQUARE_SIZE = 1, map,
-                deferred = new ymaps.vow.Deferred();
-
-            map = new ymaps.Map(
-                this._container,
-                {
-                    behaviors: ['drag', 'scrollZoom', 'multiTouch'],
-                    controls: [],
-                    center: this._state.center,
-                    zoom: this._state.zoom
-                },
-                {
-                    minZoom: this._options.minZoom,
-                    maxZoom: this._options.maxZoom,
-                    autoFitToViewport: 'always',
-                    avoidFractionalZoom: false,
-                    restrictMapArea: [
-                        [-SQUARE_SIZE, SQUARE_SIZE],
-                        [SQUARE_SIZE, -SQUARE_SIZE]
-                    ],
-                    projection: new ymaps.projection.Cartesian([
-                        [SQUARE_SIZE, 0],
-                        [0, SQUARE_SIZE]
-                    ])
-                }
-            );
-
-            if (this._container.clientWidth && this._container.clientHeight) {
-                deferred.resolve(map);
-            } else {
-                map.events.once('sizechange', function () {
-                    if (!Number.isFinite(this._state.zoom)) {
-                        map.setZoom(SchemeLayer.getFitZoom(this._container));
+            var map = new Map(
+                    this._container,
+                    {
+                        controls: [],
+                        center: this._state.center,
+                        zoom: this._state.zoom,
+                        type: null
+                    },
+                    {
+                        minZoom: this._options.minZoom,
+                        maxZoom: this._options.maxZoom,
+                        autoFitToViewport: 'always',
+                        avoidFractionalZoom: false,
+                        projection: new CartesianProjection([
+                            [-1, -1],
+                            [1, 1]
+                        ])
                     }
-                    deferred.resolve(map);
-                }.bind(this));
-            }
+                );
 
-            return deferred.promise();
+            return map;
         },
         /**
          * Fades in the map without an animation
@@ -240,11 +224,54 @@ ymaps.ready(function () {
         destroy: function () {
             this._map.destroy();
         }
-    };
+    });
 
-    ymaps.createTransportMap = function (alias, container, state, options) {
-        return new TransportMap(alias, container, state, options);
-    };
+    var Scheme = function (text) {
+            this._text = text;
+            this._node = (new DOMParser()).parseFromString(text, "text/xml").firstChild;
+            var metaDataNode = this._node.getElementsByTagName('metadata')[0];
+            this._metaData = JSON.parse(metaDataNode.firstChild.data);
+        };
+
+    Scheme.load = function (url) {
+        var xhr = new XMLHttpRequest(),
+            deferred = new vow.Deferred();
+
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                try {
+                    deferred.resolve(new Scheme(xhr.responseText));
+                } catch (e) {
+                    deferred.reject(e);
+                }
+            }
+        };
+        xhr.onerror = function (e) {
+            deferred.reject(e);
+        };
+        xhr.open('GET', url, true);
+        xhr.send(null);
+
+        return deferred.promise();
+    }
+
+    extend(Scheme.prototype, {
+        createDom: function () {
+            return this._node.cloneNode(true);
+        },
+
+        getSize: function () {
+            return [this._metaData.width, this._metaData.height];
+        },
+
+        getStations: function () {
+            return this._metaData.stations;
+        },
+
+        getLabel: function (code) {
+            return this._metaData.labels[code];
+        }
+    });
 
     /**
      * Creates a layer with a scheme,
@@ -261,42 +288,36 @@ ymaps.ready(function () {
 
         this._schemeView = schemeView;
     }
-    ymaps.util.augment(SchemeLayer, ymaps.collection.Item, {
+    augment(SchemeLayer, Item, {
         /**
          * Init function. Sets everything when a layer is added to the map
          *
          * @override ymaps.collection.Item
          */
         onAddToMap: function (map) {
-            var ground;
             SchemeLayer.superclass.onAddToMap.call(this, map);
 
-            map.events.add('actiontick', function (e) {
-                var tick = e.get('tick');
+            this._pane = map.panes.get('ground');
+            this._updateSchemePosition();
 
-                this._schemeView.setTranslate(tick.globalPixelCenter);
-                this._schemeView.setScale(SchemeLayer.getScaleFromZoom(tick.zoom));
-            }.bind(this));
+            this._pane.events.add(
+                ['viewportchange', 'zoomchange', 'clientpixelschange'],
+                this._updateSchemePosition,
+                this
+            );
 
-            this._schemeView.setBaseSize(SchemeLayer.SQUARE_SIZE, SchemeLayer.SQUARE_SIZE);
-            this._schemeView.setTranslate(map.getGlobalPixelCenter());
-            this._schemeView.setScale(SchemeLayer.getScaleFromZoom(map.getZoom()));
-            this._centerScheme();
-
-            ground = map.panes.get('ground').getElement();
-            ground.parentNode.insertBefore(this._schemeView.getNode(), ground);
+            this._pane.getElement().appendChild(this._schemeView.getNode());
         },
-        _centerScheme: function () {
-            var BOUNDS = -99999;
 
-            ymaps.util.extend(this._schemeView.getNode().style, {
-                position: 'absolute',
-                margin: 'auto',
-                top: BOUNDS + 'px',
-                bottom: BOUNDS  + 'px',
-                left: BOUNDS  + 'px',
-                right: BOUNDS  + 'px'
-            });
+        _updateSchemePosition: function () {
+            this._schemeView.updatePosition(
+                this._pane.toClientPixels([0, 0]),
+                Math.pow(2, this._pane.getZoom())
+            );
+        },
+
+        getSchemeView: function () {
+            return this._schemeView;
         }
     });
     /**
@@ -348,59 +369,40 @@ ymaps.ready(function () {
      *
      * @param {SVGElement} scheme Root node of a scheme image
      */
-    function SchemeView(node) {
-        this._node = node;
-        this._baseScale = 1;
-        this._relativeScale = 1;
+    function SchemeView (scheme) {
+        this._scheme = scheme;
+        this._selfSize = scheme.getSize();
+        this._zeroZoomScale = Math.min(
+            256 / this._selfSize[0],
+            256 / this._selfSize[1]
+        );
+
+        this._offset = [
+            Math.floor((256 - this._selfSize[0] * this._zeroZoomScale) / 2),
+            Math.floor((256 - this._selfSize[1] * this._zeroZoomScale) / 2),
+        ];
+
+        this._node = document.createElement('ymaps');
+        extend(this._node.style, {
+            position: 'absolute',
+            width: this._selfSize[0] + 'px',
+            height: this._selfSize[1] + 'px',
+        })
+
+        this._schemeNode = scheme.createDom();
+        this._schemeNode.setAttribute('width', '100%');
+        this._schemeNode.setAttribute('height', '100%');
+        this._schemeNode.setAttribute('viewBox', '0 0 ' + this._selfSize[0] + ' ' + this._selfSize[1]);
+
+        this._node.appendChild(this._schemeNode);
     }
-    SchemeView.prototype = {
-        getWidth: function () {
-            var scale = this._relativeScale * this._baseScale,
-                metadata = this.getMetaData();
 
-            return metadata.width * scale;
-        },
-        getHeight: function () {
-            var scale = this._relativeScale * this._baseScale,
-                metadata = this.getMetaData();
-
-            return metadata.height * scale;
-        },
+    extend(SchemeView.prototype, {
         fadeOut: function () {
-            this._node.getElementById('scheme-layer').style.opacity = '';
+            this._schemeNode.getElementById('scheme-layer').style.opacity = '';
         },
         fadeIn: function () {
-            this._node.getElementById('scheme-layer').style.opacity = 0.5;
-        },
-        /**
-         * Sets the base size of a scheme image.
-         * Scaling will be relative to this size
-         *
-         * For example SchemeLayer is 256x256 by default
-         * and moscow svg image is 1080x1040,
-         * therefore SchemeLayer need to set a base size
-         * to simplify further scaling
-         *
-         * @param {Number} width
-         * @param {Number} height
-         */
-        setBaseSize: function (width, height) {
-            var metadata = this.getMetaData();
-
-            this._baseScale = Math.min(
-                width  / metadata.width,
-                height / metadata.height
-            );
-
-            this.setScale(this._relativeScale);
-        },
-        /**
-         * Returns a scale that fits the scheme into the base size.
-         *
-         * @returns {Number}
-         */
-        getBaseScale: function () {
-            return this._baseScale;
+            this._schemeNode.getElementById('scheme-layer').style.opacity = 0.5;
         },
         /**
          * Move an image.
@@ -408,29 +410,24 @@ ymaps.ready(function () {
          *
          * @param {Array} vector An array of dx and dy values
          */
-        setTranslate: function (vector) {
-            var value = 'translate(' + (- vector[0]) + 'px,' + (- vector[1]) + 'px)';
+        updatePosition: function (clientCenter, mapScale) {
+            var scale = this._zeroZoomScale * mapScale,
+                offset = [
+                    this._offset[0] + clientCenter[0],
+                    this._offset[1] + clientCenter[1]
+                ];
+
+            var value = 'translate(' + offset[0] + 'px,' + offset[1] + 'px)';;
 
             ['-webkit-', '-moz-', '-ms-', '-o-', ''].forEach(function (prefix) {
+                this._node.style[prefix + 'transform-origin'] = '0px 0px';
                 this._node.style[prefix + 'transform'] = value;
             }, this);
-        },
-        /**
-         * TODO give a link to a public doc about MetaData format
-         *
-         * @returns {Object}
-         */
-        getMetaData: function () {
-            var metadataNode;
 
-            if (!this._metadata) {
-                metadataNode = this._node.getElementsByTagName('metadata')[0];
-                this._metadata = JSON.parse(metadataNode.firstChild.data);
-
-                this._node.removeChild(metadataNode);
-            }
-
-            return this._metadata;
+            extend(this._node.style, {
+                width: this._selfSize[0] * scale + 'px',
+                height: this._selfSize[1] * scale + 'px'
+            });
         },
         /**
          * @returns {SVGElement}
@@ -438,32 +435,41 @@ ymaps.ready(function () {
         getNode: function () {
             return this._node;
         },
-        _getTransform: function () {
-            if (!this._transform) {
-                this._transform = this._node.getElementById('transform-wrapper').transform.baseVal.getItem(0);
-            }
-            return this._transform;
+
+        getScheme: function () {
+            return this._scheme;
         },
-        /**
-         * Scales a scheme image, relative to the base size.
-         * Base size is an image size from the metadata.
-         * Base size usually is overwrited  by "setBaseSize'
-         *
-         * @param {Number} relativeScale
-         */
-        setScale: function (relativeScale) {
-            var scale = relativeScale * this._baseScale,
-                metadata = this.getMetaData();
 
-            this._relativeScale = relativeScale;
-            this._getTransform().setScale(scale, scale);
+        getSchemeNode: function () {
+            return this._schemeNode;
+        },
 
-            ymaps.util.extend(this._node.style, {
-                width: (metadata.width * scale) + 'px',
-                height: (metadata.height * scale)  + 'px',
-            });
+        toClientPixels: function (globalPixels, zoom) {
+            var mapScale = Math.pow(2, zoom),
+                zeroZoomPixels = [
+                    globalPixels[0] / mapScale,
+                    globalPixels[1] / mapScale
+                ];
+
+            return [
+                zeroZoomPixels[0] / this._zeroZoomScale - this._offset[0],
+                zeroZoomPixels[1] / this._zeroZoomScale - this._offset[1]
+            ];
+        },
+
+        fromClientPixels: function (clientPixels, zoom) {
+            var zeroZoomPixels = [
+                    (clientPixels[0] + this._offset[0]) * this._zeroZoomScale,
+                    (clientPixels[1] + this._offset[1]) * this._zeroZoomScale
+                ],
+                mapScale = Math.pow(2, zoom);
+
+            return [
+                zeroZoomPixels[0] * mapScale,
+                zeroZoomPixels[1] * mapScale
+            ];
         }
-    };
+    });
 
     /**
      * Station manager.
@@ -480,7 +486,9 @@ ymaps.ready(function () {
     function StationCollection(schemeView) {
         StationCollection.superclass.constructor.call(this);
 
-        var code, metadata = schemeView.getMetaData().stations, station;
+        var code,
+            metadata = schemeView.getScheme().getStations(),
+            station;
 
         this._stationsMap = {};
 
@@ -492,7 +500,7 @@ ymaps.ready(function () {
             station.events.setParent(this.events);
         }
     }
-    ymaps.util.augment(StationCollection, ymaps.Collection, {
+    augment(StationCollection, Collection, {
         /**
          * Selects stations by codes
          *
@@ -539,7 +547,7 @@ ymaps.ready(function () {
          * @returns {ymaps.vow.Promise} Resolves to an array of stations
          */
         search: function (request) {
-            return new ymaps.vow.fulfill(this.filter(function (station) {
+            return new vow.fulfill(this.filter(function (station) {
                 return station.title.split(' ').some(function (token) {
                     return token.substr(0, request.length) === request;
                 });
@@ -563,10 +571,10 @@ ymaps.ready(function () {
      */
     function Station(metadata, schemeView, options) {
         Station.superclass.constructor.call(this, options);
+        this._schemeView = schemeView;
 
         this.code = metadata.labelId;
         this.title = metadata.name;
-        this._schemeView = schemeView;
         this.selected = false;
 
         this.events.add('click', function () {
@@ -574,7 +582,7 @@ ymaps.ready(function () {
             this[this.selected ? 'deselect':'select']();
         }, this);
     }
-    ymaps.util.augment(Station, ymaps.collection.Item, {
+    augment(Station, Item, {
         /**
          * @override ymaps.collection.Item
          */
@@ -593,7 +601,7 @@ ymaps.ready(function () {
          * @returns {HTMLElement}
          */
         getLabelNode: function () {
-            return this._schemeView.getNode().getElementById('label-' + this.code);
+            return this._schemeView.getSchemeNode().getElementById('label-' + this.code);
         },
         /**
          * Selects current station.
@@ -637,7 +645,7 @@ ymaps.ready(function () {
             }
         },
         _appendTo: function (id, elements) {
-            var parentNode = this._schemeView.getNode().getElementById(id);
+            var parentNode = this._schemeView.getSchemeNode().getElementById(id);
 
             [].concat(elements).forEach(function (element) {
                 parentNode.appendChild(element);
@@ -649,14 +657,14 @@ ymaps.ready(function () {
             return svgNodes.map(this._createGeoObject, this);
         },
         _getStationNodes: function () {
-            var labelMeta = this._schemeView.getMetaData().labels[this.code];
+            var labelMeta = this._schemeView.getScheme().getLabel(this.code);
 
             return labelMeta.stationIds.map(function (id) {
-                return this._schemeView.getNode().getElementById('station-' + id);
+                return this._schemeView.getSchemeNode().getElementById('station-' + id);
             }, this);
         },
         _createGeoObject: function (svgNode) {
-            var rectangle = new ymaps.Rectangle(
+            var rectangle = new Rectangle(
                 this._getGeoBBox(svgNode),
                 {},
                 {fill: true, opacity: 0}
@@ -664,44 +672,27 @@ ymaps.ready(function () {
             this.getMap().geoObjects.add(rectangle);
             return rectangle;
         },
-        /*
-         * Returns real world geo cootdinates for the current station
 
-         * @returns {Vow.Promise} resolves to a pair of coordinates
-         */
-        getCoordinates: function () {
-            //first get city bounds
-            return ymaps.geocode(
-                this._schemeView.getMetaData().name,
-                {results: 1, kind: 'locality'}
-            ).then(function (res) {
-                //search metro station inside city bounds
-                return ymaps.geocode(this.title, {
-                    results: 1,
-                    kind: 'metro',
-                    boundedBy: res.geoObjects.get(0).geometry.getBounds()
-                }).then(function (res) {
-                    return res.geoObjects.get(0).geometry.getCoordinates();
-                });
-            }.bind(this));
-        },
         _getGeoBBox: function (svgNode) {
-            var globalBBox = svgNode.getBBox(),
+            var schemeView = this._schemeView,
                 projection = this.getMap().options.get('projection'),
-                schemeMeta = this._schemeView.getMetaData(),
-                center = {x: schemeMeta.width / 2, y: schemeMeta.height / 2},
-                baseZoom = - SchemeLayer.getZoomFromScale(this._schemeView.getBaseScale()),
+                zoom = this.getMap().getZoom(),
+                bbox = svgNode.getBBox();
 
-                topLeftPoint = projection.fromGlobalPixels([
-                    globalBBox.x - center.x,
-                    globalBBox.y - center.y
-                ], baseZoom),
-                bottomRightPoint = projection.fromGlobalPixels([
-                    globalBBox.x - center.x + globalBBox.width,
-                    globalBBox.y - center.y + globalBBox.height
-                ], baseZoom);
+            return [
+                projection.fromGlobalPixels(
+                    schemeView.fromClientPixels([bbox.x, bbox.y], zoom),
+                    zoom
+                ),
+                projection.fromGlobalPixels(
+                    schemeView.fromClientPixels([bbox.x + bbox.width, bbox.y + bbox.height], zoom),
+                    zoom)
+            ];
 
-            return [topLeftPoint, bottomRightPoint];
         }
     });
-});
+
+    provide(function (alias, container, state, options) {
+        return new TransportMap(alias, container, state, options);
+    });
+});});
