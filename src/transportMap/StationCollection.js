@@ -19,9 +19,8 @@ ymaps.modules.define('transportMap.StationCollection', [
     function StationCollection(schemeView) {
         StationCollection.superclass.constructor.call(this);
 
-        var code,
-            metadata = schemeView.getScheme().getStations(),
-            station;
+        var code, station,
+            metadata = schemeView.getScheme().getStations();
 
         this._stationsMap = {};
 
@@ -47,9 +46,10 @@ ymaps.modules.define('transportMap.StationCollection', [
         /**
          * Deselects stations
          *
-         * @param {Array<Number>|Number} codes
+         * @param {Array<Number>|Number} [codes] By default all selected
          */
         deselect: function (codes) {
+            codes = codes || this.getSelection();
             [].concat(codes).forEach(function (code) {
                 this.getByCode(code).deselect();
             }, this);

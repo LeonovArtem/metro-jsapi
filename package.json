@@ -16,7 +16,8 @@
     "url": "https://github.com/ymaps/metro-jsapi/issues"
   },
   "dependencies": {
-    "metro-data": "git://github.com/ymaps/metro-data.git"
+    "metro-data": "git://github.com/ymaps/metro-data.git",
+    "node-static": "~0.7.3"
   },
   "devDependencies": {
     "mocha": "~1.18.2",

@@ -1,7 +1,8 @@
 ymaps.modules.define('transportMap.SchemeLayer', [
     'util.augment',
-    'collection.Item'
-], function (provide, augment, Item) {
+    'collection.Item',
+    'transportMap.SchemeView',
+], function (provide, augment, Item, SchemeView) {
     /**
      * Creates a layer with a scheme,
      * that should be added to the map.
@@ -57,36 +58,10 @@ ymaps.modules.define('transportMap.SchemeLayer', [
      * @returns {Number}
      */
     SchemeLayer.getFitZoom = function (containerNode) {
-        return this.getZoomFromScale(Math.min(
-            containerNode.clientWidth / this.SQUARE_SIZE,
-            containerNode.clientHeight / this.SQUARE_SIZE
-        ));
-    };
-    /**
-     * Size of the layer with zoom = 0
-     *
-     * @see http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/projection.Cartesian.xml
-     */
-    SchemeLayer.SQUARE_SIZE = 256;
-    /**
-     * Translates an image scale into a map zoom
-     *
-     * @param {Number} zoom
-     *
-     * @returns {Number}
-     */
-    SchemeLayer.getScaleFromZoom = function (zoom) {
-        return Math.pow(2, zoom);
-    };
-    /**
-     * Translates a map zoom into an image scale
-     *
-     * @param {Number} zoom
-     *
-     * @returns {Number}
-     */
-    SchemeLayer.getZoomFromScale = function (scale) {
-        return Math.log(scale) * Math.LOG2E;
+        return Math.log(Math.min(
+            containerNode.clientWidth / SchemeView.ZERO_ZOOM_SIZE,
+            containerNode.clientHeight / SchemeView.ZERO_ZOOM_SIZE
+        )) / Math.LN2;
     };
 
     provide(SchemeLayer);

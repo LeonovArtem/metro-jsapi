@@ -22,8 +22,8 @@ Before using the API features, you must make sure your browser loads all require
 ```html
 <head>
     ...
-    <!-- please note ymaps version is 2.1.5 -->
-    <script src="http://api-maps.yandex.ru/2.1.5/?load=util.extend,util.augment,vow,event.Manager,Map,rojection.Cartesian,collection.Item,Collection,Rectangle,geocode&lang=en-US" type="text/javascript"></script>
+    <!-- please note ymaps version is 2.1 -->
+    <script src="//api-maps.yandex.ru/2.1/?lang=ru_RU&load=&mode=debug"></script>
     <script src="/metro.js" type="text/javascript"></script>
     ...
 </head>
@@ -50,24 +50,21 @@ Create a nonzero-size visible container where the map will be placed. Any block 
 The map should be created after the web page has completely loaded. This will ensure that the map container has been created and can be accessed by its id. To initialize the map after loading the page, you can use the ready() function.
 ```html
 <script type="text/javascript">
-    ymaps.ready(function () {
-        ymaps.createTransportMap('moscow', 'containter-id').then(function (transportMap) {
+    ymaps.modules.require(['TransportMap']).spread(function (TransportMap) {
+        TransportMap.create('moscow', 'containter-id').then(function (transportMap) {
             console.log('map created');
         }).done();
-    );
+    });
 </script>
 ```
 
 Reference
 ---------
-###ymaps.createTransportMap
-Static factory method.
 
-Creates a **TransportMap** instance and returns a [Vow] promise with it.
-```javascript
-    ymaps.createTransportMap(alias, container, state?, options?)
-```
-####Parameters
+###TransportMap
+Main class for creating and managing a transport map.
+
+####Constructor
 Parameter | Parameter properties | Type | req | Description
 --- | --- | --- | :---: | ---
 alias | | String | ✔ | City alias.Supported values:'moscow', 'spb', 'kiev', 'kharkov', 'minsk'
@@ -82,10 +79,6 @@ options | | Object | | Map options
 | | lang | String | | Default value: 'ru'
 | | path | String | | Default value: 'node_modules/metro-data/'
 
-###TransportMap
-Private class.
-
-Class for creating and managing a map.
 ####Fields
 Name | Type | Description
 --- | --- | ---
@@ -110,11 +103,21 @@ setZoom(zoom, options) | [Vow].Promise | See [ymaps.Map.setZoom]
 getSchemeId() | Number | map Id  of the current scheme.
 getMap() | [Map] | Returns ymaps [Map] instance.
 destroy() |  | Destroys the map.
+####Static methods
+Name | Returns | Description
+--- | --- | ---
+create() | [Vow].Promise | Factory method. Accepts the same arguments, as the constructor
+
 
 ###StationCollection
-Private class. Inherits [Collection].
+Inherits [Collection].
 
 Class for creating and managing **Station** instances.
+
+####Constructor
+Parameter | Parameter properties | Type | req | Description
+--- | --- | --- | :---: | ---
+schemeView | | **SchemeView** | ✔ | schemeView
 ####Fields
 See [inherited fields](http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/Collection.xml#properties-summary).
 ####Events
@@ -134,8 +137,16 @@ getSelection | Number[] | Returns codes of all selected stations
 getByCode(code) | **Station** | Returns **Station** instance by its code number
 search(request) | [Vow].Promise | Search stations by words starting with the letters %request%. And returns promise with matches
 ###Station
-Private class. Inherits [collection.Item].
+Inherits [collection.Item].
 
+####Constructor
+Parameter | Parameter properties | Type | req | Description
+--- | --- | --- | :---: | ---
+metadata | | Object | ✔ | Station meta description
+| | labelId | String/Number | ✔ | Label node id
+| | name | String | ✔ | Station title
+schemeView | | **SchemeView** | ✔ |
+options | | Object  | | Options will be passed to [collection.Item] constructor
 ####Fields
 See [inherited fields](http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/collection.Item.xml#properties-summary).
 
@@ -143,7 +154,6 @@ Name | Type | Description
 --- | --- | ---
 code | Number | Station code number
 title | String | Station name
-
 ####Events
 All [inherited events](http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/collection.Item.xml#events-summary) and some additionals:
 
@@ -159,7 +169,18 @@ getLabelNode() | SVGElement | Non-cacheble getter for the label node.
 select() | | Selects current station. Fires 'selectionchange' event.
 deselect() | | Deselects current station. Fires 'selectionchange' event.
 getCoordinates() | [Vow].Promise | Retrieves a pair of world geo coordinates
+getPosition() | Number[] | Returns a pair of local CartesianProjection coordinates
+annotate(properties, options, dontAddToMap?) | [Vow].Promise | Creates an **Annotation**([Placemark])
+###Annotation
+Inherits [Placemark].
 
+Provides a placemark with a predefined layout.
+####Constructor
+See [inherited constructor](http://api.yandex.com/maps/doc/jsapi/2.x/ref/reference/Placemark.xml#constructor-summary)
+####Fields
+See [inherited fields](http://api.yandex.com/maps/doc/jsapi/2.x/ref/reference/Placemark.xml#properties-summary).
+####Methods
+See [inherited methods](http://api.yandex.com/maps/doc/jsapi/2.x/ref/reference/Placemark.xml#methods-summary).
 
 Running Tests
 ---------
@@ -178,3 +199,4 @@ npm test`
 [Map]:http://api.yandex.com/maps/doc/jsapi/2.x/ref/reference/Map.xml
 [Collection]:http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/Collection.xml
 [collection.Item]:http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/collection.Item.xml
+[Placemark]:http://api.yandex.com/maps/doc/jsapi/2.x/ref/reference/Placemark.xml

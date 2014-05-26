@@ -1,3 +1,11 @@
+/**
+ * @example
+ * ymaps.modules.load(['TransportMap']).then(function (TransportMap) {
+ *     TransportMap.create('moscow', 'map_container_id').then(function (map) {
+ *         // Do something valuable
+ *     });
+ * });
+ */
 ymaps.modules.define('TransportMap', [
     'util.extend',
     'transportMap.Scheme',
@@ -13,9 +21,6 @@ ymaps.modules.define('TransportMap', [
     StationCollection, AnnotationCollection,
     EventManager, CartesianProjection, Map) {
     /**
-     * TransportMap.
-     * Instance of this class is exposed to the user
-     * through the 'createTransportMap' factory.
      * TransportMap creates a map and inserts SchemeLayer into it.
      *
      * Has an EventManager, which is a parent for all Events on the map & stations
@@ -32,20 +37,19 @@ ymaps.modules.define('TransportMap', [
      * @param {Array<Number>} [state.center] geo point
      * @param {Boolean} [state.shaded] Boolean flag to shade or not a map
      * @param {Array<Number>} [state.selection] List of selected station codes
-     * @param {Object} [options]
+     * @param {Object} options
+     * @param {Number} options.lang
      * @param {Number} [options.maxZoom = 3]
      * @param {Number} [options.minZoom = 0]
-     * @param {Number} [options.lang = 'ru']
      * @param {String} [options.path = 'node_modules/metro-data/'] A path to the metro-data
-     * @example
-     * ymaps.modules.load(['TransportMap']).then(function (TransportMap) {
-     *     TransportMap.create('moscow', 'map_container_id').then(function (map) {
-     *         // Do something valuable
-     *     });
-     * });
      */
     function TransportMap(city, container, state, options) {
-        this._schemeId = this._schemeIdByCity[city];
+        this._schemeId = this._schemeIdByCity[city] || city;
+
+        if (!options) {
+            options = state;
+            state = null;
+        }
 
         this._options = extend({
             path: 'node_modules/metro-data/',
@@ -61,7 +65,11 @@ ymaps.modules.define('TransportMap', [
         if (typeof container === 'string') {
             this._container = document.getElementById(container);
         } else {
-            this._container = container;
+            // support jQuery
+            this._container = container[0] || container;
+        }
+        if (!this._state.hasOwnProperty('zoom')) {
+            this._state.zoom = SchemeLayer.getFitZoom(this._container);
         }
         if (!this._state.hasOwnProperty('zoom')) {
             this._state.zoom = SchemeLayer.getFitZoom(this._container);
@@ -71,9 +79,10 @@ ymaps.modules.define('TransportMap', [
         return this._loadScheme().then(this._onSchemeLoad.bind(this));
     }
 
+
     TransportMap.create = function (city, container, state, options) {
         return new TransportMap(city, container, state, options);
-    }
+    };
 
     extend(TransportMap.prototype, {
         _loadScheme: function () {
@@ -82,38 +91,35 @@ ymaps.modules.define('TransportMap', [
                 this._schemeId, '.', this._options.lang, '.svg'
             ].join(''));
         },
-        /**
-         * Loads an svg scheme
-         * and returns promise that provides an SVGElement
-         *
-         * @returns {ymaps.vow.Promise}
-         */
         _onSchemeLoad: function (scheme) {
-            this._scheme = scheme;
-            this._schemeView = new SchemeView(scheme);
+            return this._createMap().then(function (map) {
+                this._scheme = scheme;
+                this._schemeView = new SchemeView(scheme);
 
-            this._map = this._createMap();
-            this._map.layers.add(new SchemeLayer(this._schemeView));
+                this._map = map;
+                this._map.layers.add(new SchemeLayer(this._schemeView));
 
-            this.stations = new StationCollection(this._schemeView);
-            this._map.geoObjects.add(this.stations);
-            this.stations.select(this._state.selection);
+                this.stations = new StationCollection(this._schemeView);
+                this._map.geoObjects.add(this.stations);
+                this.stations.select(this._state.selection);
 
-            this.annotations = new AnnotationCollection(this);
+                this.annotations = new AnnotationCollection(this);
 
-            // Event manager added
-            this.events = new EventManager();
-            // Enable event bubbling
-            this._map.events.setParent(this.events);
+                // Event manager added
+                this.events = new EventManager();
+                // Enable event bubbling
+                this._map.events.setParent(this.events);
 
-            if (this._state.shaded) {
-                this.shade();
-            }
+                if (this._state.shaded) {
+                    this.shade();
+                }
 
-            return this;
+                return this;
+            }.bind(this));
         },
         _createMap: function () {
-            var map = new Map(
+            var deferred = new ymaps.vow.Deferred(),
+                map = new Map(
                     this._container,
                     {
                         controls: [],
@@ -133,7 +139,19 @@ ymaps.modules.define('TransportMap', [
                     }
                 );
 
-            return map;
+                // If container is hidden, then wait untill it becomes visible
+                if (this._container.clientWidth && this._container.clientHeight) {
+                    deferred.resolve(map);
+                } else {
+                    map.events.once('sizechange', function () {
+                        if (!Number.isFinite(this._state.zoom)) {
+                            map.setZoom(SchemeLayer.getFitZoom(this._container));
+                        }
+                        deferred.resolve(map);
+                    }.bind(this));
+                }
+
+            return deferred.promise();
         },
         /**
          * Fades in the map without an animation
@@ -167,7 +185,7 @@ ymaps.modules.define('TransportMap', [
          * @param {Number} [zoom]
          * @param {Object} [options]
          *
-         * @returns {Vow.Promise}
+         * @returns {vow.Promise}
          */
         setCenter: function () {
             return this._map.setCenter.apply(this._map, arguments);
@@ -188,7 +206,7 @@ ymaps.modules.define('TransportMap', [
          * @param {Number} zoom
          * @param {Object} [options]
          *
-         * @returns {Vow.Promise}
+         * @returns {vow.Promise}
          */
         setZoom: function () {
             return this._map.setZoom.apply(this._map, arguments);

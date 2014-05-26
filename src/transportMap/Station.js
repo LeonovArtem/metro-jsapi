@@ -145,19 +145,46 @@ ymaps.modules.define('transportMap.Station', [
             ];
         },
 
+        /**
+         * Returns position of a station in local CartesianProjectio
+         *
+         * @returns {Array<<Number>>}
+         */
         getPosition: function () {
             var bbox = this._getGeoBBox(this.getNode());
             return [
-                (bbox[0][0] + bbox[1][0]) /2,
-                (bbox[0][1] + bbox[1][1]) /2
+                (bbox[0][0] + bbox[1][0]) / 2,
+                (bbox[0][1] + bbox[1][1]) / 2
             ];
+        },
+
+        /**
+         * Returns real world geo cootdinates for the current station
+         *
+         * @returns {vow.Promise} resolves to a pair of coordinates
+         */
+        getCoordinates: function () {
+            //first get city bounds
+            return ymaps.geocode(
+                this._schemeView.getScheme().getCity(),
+                {results: 1, kind: 'locality'}
+            ).then(function (res) {
+                //search metro station inside city bounds
+                return ymaps.geocode(this.title, {
+                    results: 1,
+                    kind: 'metro',
+                    boundedBy: res.geoObjects.get(0).geometry.getBounds()
+                }).then(function (res) {
+                    return res.geoObjects.get(0).geometry.getCoordinates();
+                });
+            }.bind(this));
         },
 
         annotate: function (properties, options, dontAddToMap) {
             var deferred = new vow.Deferred();
 
             ymaps.modules.require('transportMap.Annotation').spread(function (Annotation) {
-                var annotation = new Annotation (this.getPosition(), properties, options);
+                var annotation = new Annotation(this.getPosition(), properties, options);
                 this._annotations.push(annotation);
                 if (!dontAddToMap) {
                     this.getMap().geoObjects.add(annotation);
