@@ -16,12 +16,17 @@
     "url": "https://github.com/ymaps/metro-jsapi/issues"
   },
   "dependencies": {
-    "metro-data": "git://github.com/ymaps/metro-data.git"
+    "metro-data": "git://github.com/ymaps/metro-data.git",
+    "node-static": "~0.7.3"
   },
   "devDependencies": {
     "mocha": "~1.18.2",
     "chai": "~1.9.1",
     "mocha-phantomjs": "~3.3.2",
-    "es5-shim": "~2.3.0"
+    "es5-shim": "~2.3.0",
+    "gulp": "~3.6.2",
+    "gulp-concat": "~2.2.0",
+    "gulp-uglify": "~0.3.0",
+    "gulp-watch": "~0.6.4"
   }
 }

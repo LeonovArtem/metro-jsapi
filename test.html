@@ -3,15 +3,48 @@
     <head>
         <meta charset="utf-8">
         <title>Mocha Tests</title>
-        <link rel="stylesheet" href="node_modules/mocha/mocha.css" />
+        <link rel="stylesheet" href="./node_modules/mocha/mocha.css" />
     </head>
     <body>
         <div id="mocha"></div>
         <script src="node_modules/mocha/mocha.js"></script>
         <script src="node_modules/chai/chai.js"></script>
-        <script src="http://api-maps.yandex.ru/2.1.5/?load=util.extend,util.augment,vow,event.Manager,Map,projection.Cartesian,collection.Item,Collection,Rectangle,geocode&lang=en-US&mode=debug" type="text/javascript"></script>
+        <script src="http://api-maps.yandex.ru/2.1?lang=en-US&mode=debug" type="text/javascript"></script>
         <script src="node_modules/es5-shim/es5-shim.js"></script>
-        <script src="metro.js"></script>
-        <script src="test.js"></script>
+        <script src="metro.debug.js"></script>
+        <script src="test/transportMap/Scheme.js"></script>
+        <script src="test/transportMap/StationCollection.js"></script>
+        <script src="test/transportMap/Station.js"></script>
+        <script src="test/TransportMap.js"></script>
+        <script>
+            chai.should();
+            mocha.setup('bdd');
+            window.expect = chai.expect,
+
+            chai.Assertion.addMethod('equalAsSets', function (otherArray) {
+                var array = this._obj;
+
+                expect(array).to.be.an.instanceOf(Array);
+                expect(otherArray).to.be.an.instanceOf(Array);
+                expect(array.length).to.equal(otherArray.length);
+
+                this.assert(
+                    array.every(function (elem) {return ~otherArray.indexOf(elem); }),
+                    "expected #{this} to be equal to #{exp} (as sets, i.e. no order)",
+                    array,
+                    otherArray
+                );
+            });
+
+            ymaps.ready(function () {
+                setTimeout(function () {
+                    if (window.mochaPhantomJS) {
+                        mochaPhantomJS.run();
+                        } else {
+                        mocha.run();
+                    }
+                });
+            });
+        </script>
     </body>
 </html>
