@@ -1,4 +1,4 @@
-/* global ymaps, mocha, describe, it, expect */
+/* global ymaps, describe, it, expect */
 ymaps.modules.require(['TransportMap', 'vow']).spread(function (TransportMap, vow) {
     describe('Station module', function () {
         this.timeout(15000);
@@ -28,23 +28,15 @@ ymaps.modules.require(['TransportMap', 'vow']).spread(function (TransportMap, vo
             });
         });
         it('"getCoordinates" should respect current city', function () {
-            return vow.all([
-                TransportMap.create('kharkov', document.body, {lang: 'ru'}),
-                TransportMap.create('moscow', document.body, {lang: 'ru'})
-            ]).spread(function (transportMap1, transportMap2) {
-                return vow.all([
-                    transportMap1.stations.search('Ботанический'),
-                    transportMap2.stations.search('Ботанический'),
-                ]).spread(function (stations1, stations2) {
-                    //two subsequent requests, non parallel
-                    return stations1[0].getCoordinates().then(function (coord1) {
-                        return stations2[0].getCoordinates().then(function (coord2) {
-                            expect(coord1).to.not.deep.equal(coord2);
-                            transportMap1.destroy();
-                            transportMap2.destroy();
-                        });
+            return TransportMap.create('kharkov', document.body, {lang: 'ru'}).then(function (transportMap) {
+                return transportMap.stations.search('Ботанический').then(function (stations) {
+                    return stations[0].getCoordinates().then(function (coord) {
+                        expect(coord[0]).to.be.within(50, 51);
+                        expect(coord[1]).to.be.within(36, 37);
+                        transportMap.destroy();
                     });
                 });
+
             });
         });
     });
