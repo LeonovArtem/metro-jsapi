@@ -139,6 +139,10 @@ ymaps.modules.define('TransportMap', [
                     }
                 );
 
+
+                // NOTE Station class relies on a "getBBox",
+                // so we must resolve container is attached and visible
+
                 // If container is hidden, then wait untill it becomes visible
                 if (this._container.clientWidth && this._container.clientHeight) {
                     deferred.resolve(map);

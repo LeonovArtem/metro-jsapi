@@ -2,6 +2,8 @@ MetroJS API [![Build Status](https://travis-ci.org/metrofun/metro-jsapi.svg?bran
 =========
 MetroJS API is a tool for integrating interactive Yandex.Metro schemes into a website. Using this API, you can manage schemes and their contents, as well as create various applications. MetroJS is built with [Yandex.Maps JavaScript API].
 
+![Example Image](examples/stationAnnotate.png)
+
 Install
 ---------
 ```console

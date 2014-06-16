@@ -4,7 +4,7 @@
   "description": "",
   "main": "metro.js",
   "scripts": {
-    "test": "./node_modules/.bin/mocha-phantomjs -s webSecurityEnabled=false test.html"
+    "test": "./node_modules/.bin/mocha-phantomjs -s webSecurityEnabled=false -t 15000 test.html"
   },
   "repository": {
     "type": "git",

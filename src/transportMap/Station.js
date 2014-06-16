@@ -128,6 +128,9 @@ ymaps.modules.define('transportMap.Station', [
             return rectangle;
         },
 
+        /**
+         * TODO remove 'getBBox' dependency, calculate bbox when svgNode is detache
+         */
         _getGeoBBox: function (svgNode) {
             var schemeView = this._schemeView,
                 projection = this.getMap().options.get('projection'),
@@ -182,6 +185,9 @@ ymaps.modules.define('transportMap.Station', [
 
         annotate: function (properties, options, dontAddToMap) {
             var deferred = new vow.Deferred();
+
+            properties = properties || {};
+            properties.iconColor = this.getNode().getAttribute('fill');
 
             ymaps.modules.require('transportMap.Annotation').spread(function (Annotation) {
                 var annotation = new Annotation(this.getPosition(), properties, options);
