@@ -191,6 +191,10 @@ This will run Mocha in PhantomJS
 npm test`
 ```
 
+Browser support
+---------
+Chrome, Firefox, IE 9+, iOSSafari 4+, Android Browser 4+
+
 [Yandex.Maps JavaScript API]:http://api.yandex.com/maps/doc/jsapi/
 [metro-data]:https://github.com/ymaps/metro-data
 [Vow]:https://github.com/dfilatov/vow/blob/0.3.x/README.md
