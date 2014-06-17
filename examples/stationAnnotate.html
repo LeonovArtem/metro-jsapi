@@ -24,13 +24,13 @@
             ymaps.modules.require(['TransportMap']).spread(function (TransportMap) {
                 return TransportMap.create('moscow', 'map', {center: [0, 0]}, {
                     path: '../node_modules/metro-data/',
-                    lang: 'ru'
+                    lang: 'en'
                 }).then(function (map) {
-                    ['Киев', 'Китай', 'Спорт', 'Люблино'].forEach(function (token) {
+                    ['Kiyev', 'Marksist', 'Frunze'].forEach(function (token) {
                         map.stations.search(token).then(function (res) {
                             var station = res[0];
                             map.setCenter(station.getPosition(), 3);
-                            station.annotate({ iconContent: 'Магазин "Ромашка"' });
+                            station.annotate({ iconContent: 'Restaurant «Belissimo»' });
                         });
                     });
                 });
