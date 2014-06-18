@@ -27,11 +27,6 @@ ymaps.modules.define('transportMap.Station', [
         this.title = metadata.name;
         this.selected = false;
         this._annotations = [];
-
-        this.events.add('click', function () {
-            //toggle select
-            this[this.selected ? 'deselect':'select']();
-        }, this);
     }
     augment(Station, Item, {
         /**

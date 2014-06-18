@@ -14,9 +14,9 @@ ymaps.modules.define('transportMap.StationCollection', [
      * @inherits ymaps.Collection
      *
      * @param {SchemeView} schemeView
-     * @param {ymap.Map} ymap
+     * @param {Boolean} selectOnClick
      */
-    function StationCollection(schemeView) {
+    function StationCollection(schemeView, selectOnClick) {
         StationCollection.superclass.constructor.call(this);
 
         var code, station,
@@ -31,8 +31,27 @@ ymaps.modules.define('transportMap.StationCollection', [
             this.add(station);
             station.events.setParent(this.events);
         }
+
+        if (selectOnClick) {
+            this.setSelectOnClick(true);
+        }
     }
     augment(StationCollection, Collection, {
+        /**
+         * Controls weather stations should be selected/unselected by click
+         *
+         * @param {Boolean} value yes/no
+         */
+        setSelectOnClick: function (value) {
+            var method = value ? 'add':'remove';
+
+            this.each(function (station) {
+                station.events[method]('click', this._onStationClick, station);
+            }, this);
+        },
+        _onStationClick: function () {
+            this[this.selected ? 'deselect':'select']();
+        },
         /**
          * Selects stations by codes
          *

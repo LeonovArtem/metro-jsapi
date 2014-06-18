@@ -41,26 +41,12 @@ ymaps.modules.define('TransportMap', [
      * @param {Number} options.lang
      * @param {Number} [options.maxZoom = 3]
      * @param {Number} [options.minZoom = 0]
+     * @param {Boolean} [options.shadeOnSelect = false]  Shade the map on stations select
+     * @param {Boolean} [options.selectOnClick = true] Selects stations by click
      * @param {String} [options.path = 'node_modules/metro-data/'] A path to the metro-data
      */
     function TransportMap(city, container, state, options) {
         this._schemeId = this._schemeIdByCity[city] || city;
-
-        if (!options) {
-            options = state;
-            state = null;
-        }
-
-        this._options = extend({
-            path: 'node_modules/metro-data/',
-            minZoom: 0,
-            maxZoom: 3
-        }, options);
-        this._state = extend({
-            shaded: false,
-            center: [0, 0],
-            selection: []
-        }, state);
 
         if (typeof container === 'string') {
             this._container = document.getElementById(container);
@@ -68,12 +54,12 @@ ymaps.modules.define('TransportMap', [
             // support jQuery
             this._container = container[0] || container;
         }
-        if (!this._state.hasOwnProperty('zoom')) {
-            this._state.zoom = SchemeLayer.getFitZoom(this._container);
+
+        if (!options) {
+            options = state;
+            state = null;
         }
-        if (!this._state.hasOwnProperty('zoom')) {
-            this._state.zoom = SchemeLayer.getFitZoom(this._container);
-        }
+        this._initStateAndOptions(state, options);
 
         //NOTE promise is returned from constructor
         return this._loadScheme().then(this._onSchemeLoad.bind(this));
@@ -85,6 +71,27 @@ ymaps.modules.define('TransportMap', [
     };
 
     extend(TransportMap.prototype, {
+        _initStateAndOptions: function (state, options) {
+            this._options = extend({
+                path: 'node_modules/metro-data/',
+                shadeOnSelect: false,
+                selectOnClick: true,
+                minZoom: 0,
+                maxZoom: 3
+            }, options);
+            this._state = extend({
+                shaded: false,
+                center: [0, 0],
+                selection: []
+            }, state);
+
+            if (!this._state.hasOwnProperty('zoom')) {
+                this._state.zoom = SchemeLayer.getFitZoom(this._container);
+            }
+            if (!this._state.hasOwnProperty('zoom')) {
+                this._state.zoom = SchemeLayer.getFitZoom(this._container);
+            }
+        },
         _loadScheme: function () {
             return Scheme.create([
                 this._options.path,
@@ -99,7 +106,7 @@ ymaps.modules.define('TransportMap', [
                 this._map = map;
                 this._map.layers.add(new SchemeLayer(this._schemeView));
 
-                this.stations = new StationCollection(this._schemeView);
+                this.stations = new StationCollection(this._schemeView, this._options.selectOnClick);
                 this._map.geoObjects.add(this.stations);
                 this.stations.select(this._state.selection);
 
@@ -110,6 +117,17 @@ ymaps.modules.define('TransportMap', [
                 // Enable event bubbling
                 this._map.events.setParent(this.events);
 
+                if (this._options.shadeOnSelect) {
+                    this.stations.events.add('selectionchange', function () {
+                        var selectedLength = this.stations.getSelection().length;
+
+                        if (selectedLength === 1) {
+                            this.shade();
+                        } else if (selectedLength === 0) {
+                            this.unshade();
+                        }
+                    }, this);
+                }
                 if (this._state.shaded) {
                     this.shade();
                 }
@@ -681,11 +699,6 @@ ymaps.modules.define('transportMap.Station', [
         this.title = metadata.name;
         this.selected = false;
         this._annotations = [];
-
-        this.events.add('click', function () {
-            //toggle select
-            this[this.selected ? 'deselect':'select']();
-        }, this);
     }
     augment(Station, Item, {
         /**
@@ -875,9 +888,9 @@ ymaps.modules.define('transportMap.StationCollection', [
      * @inherits ymaps.Collection
      *
      * @param {SchemeView} schemeView
-     * @param {ymap.Map} ymap
+     * @param {Boolean} selectOnClick
      */
-    function StationCollection(schemeView) {
+    function StationCollection(schemeView, selectOnClick) {
         StationCollection.superclass.constructor.call(this);
 
         var code, station,
@@ -892,8 +905,27 @@ ymaps.modules.define('transportMap.StationCollection', [
             this.add(station);
             station.events.setParent(this.events);
         }
+
+        if (selectOnClick) {
+            this.setSelectOnClick(true);
+        }
     }
     augment(StationCollection, Collection, {
+        /**
+         * Controls weather stations should be selected/unselected by click
+         *
+         * @param {Boolean} value yes/no
+         */
+        setSelectOnClick: function (value) {
+            var method = value ? 'add':'remove';
+
+            this.each(function (station) {
+                station.events[method]('click', this._onStationClick, station);
+            }, this);
+        },
+        _onStationClick: function () {
+            this[this.selected ? 'deselect':'select']();
+        },
         /**
          * Selects stations by codes
          *

@@ -78,6 +78,8 @@ state | | Object | | Map parameters
 options | | Object | | Map options
 | | maxZoom | Number| | Default value: 3
 | | minZoom | Number | | Default value: 0
+| | selectOnClick | Boolean | | Default value: true
+| | shadeOnSelect | Boolean | | Default value: false
 | | lang | String | | Default value: 'ru'
 | | path | String | | Default value: 'node_modules/metro-data/'
 
@@ -120,6 +122,7 @@ Class for creating and managing **Station** instances.
 Parameter | Parameter properties | Type | req | Description
 --- | --- | --- | :---: | ---
 schemeView | | **SchemeView** | ✔ | schemeView
+selectOnClick | | Boolean | ✔ | Weather to select stations by click
 ####Fields
 See [inherited fields](http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/Collection.xml#properties-summary).
 ####Events
@@ -133,6 +136,7 @@ All [inherited methods](http://api.yandex.ru/maps/doc/jsapi/beta/ref/reference/C
 
 Name | Returns | Description
 --- | --- | ---
+setSelectOnClick(bool) | |  Enable/disable stations selection by click
 select(codes) | |  Selects stations by codes
 deselect(codes) | |  Deselects stations. Without arguments deselects all
 getSelection | Number[] | Returns codes of all selected stations
