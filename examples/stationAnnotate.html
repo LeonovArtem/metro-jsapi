@@ -24,6 +24,7 @@
             ymaps.modules.require(['TransportMap']).spread(function (TransportMap) {
                 return TransportMap.create('moscow', 'map', {center: [0, 0]}, {
                     path: '../node_modules/metro-data/',
+                    shadeOnSelect: true,
                     lang: 'en'
                 }).then(function (map) {
                     ['Kiyev', 'Marksist', 'Frunze'].forEach(function (token) {

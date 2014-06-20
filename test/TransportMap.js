@@ -137,22 +137,33 @@ ymaps.modules.require(['TransportMap', 'vow']).spread(function (TransportMap, vo
                     transportMap.unshade();
                 }).done();
             });
-            it('should fire "boundschange" on center change', function () {
-                var newCenter = [0.1, 0.1];
-
-                return TransportMap.create(
+            it('should fire "shadechange" on unshade', function (done) {
+                TransportMap.create(
                     'moscow',
                     mapContainer,
                     {lang: 'ru'}
                 ).then(function (transportMap) {
-                    transportMap.events.add('boundschange', function (e) {
-                        var center = e.get('newCenter');
-                        expect(center[0]).to.be.closeTo(newCenter[0], newCenter[0] / 10000);
-                        expect(center[1]).to.be.closeTo(newCenter[1], newCenter[1] / 10000);
+                    transportMap.events.add('shadechange', function (e) {
+                        expect(e.get('type')).to.equal('unshade');
 
                         transportMap.destroy();
+                        done();
                     });
-                    transportMap.setCenter(newCenter);
+                    transportMap.unshade();
+                }).done();
+            });
+            it('should support "shadeOnSelect" option', function (done) {
+                TransportMap.create('moscow', mapContainer, {
+                    lang: 'ru',
+                    shadeOnSelect: true
+                }).then(function (transportMap) {
+                    transportMap.events.add('shadechange', function (e) {
+                        expect(e.get('type')).to.equal('shade');
+
+                        transportMap.destroy();
+                        done();
+                    });
+                    transportMap.stations.get(0).select();
                 }).done();
             });
             it('should fire "boundschange" on zoom change', function () {
