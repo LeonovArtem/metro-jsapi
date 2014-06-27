@@ -676,7 +676,7 @@ ymaps.ready(function () {
                 {results: 1, kind: 'locality'}
             ).then(function (res) {
                 //search metro station inside city bounds
-                return ymaps.geocode(this.title, {
+                return ymaps.geocode('metro ' + this.title, {
                     results: 1,
                     kind: 'metro',
                     boundedBy: res.geoObjects.get(0).geometry.getBounds()
